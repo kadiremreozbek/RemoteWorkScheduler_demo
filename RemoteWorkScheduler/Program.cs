@@ -18,9 +18,9 @@ Log.Logger = new LoggerConfiguration()
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddScoped<FluentValidation.IValidator<EmployeeForCreationDto>,EmployeeCreationValidator>();
-builder.Services.AddScoped<FluentValidation.IValidator<TeamForCreationDto>, TeamCreationValidator>();
-builder.Services.AddScoped<FluentValidation.IValidator<RemoteLogForCreationDto>, RemoteLogCreationValidator>();
+builder.Services.AddScoped<IValidator<EmployeeForCreationDto>,EmployeeCreationValidator>();
+builder.Services.AddScoped<IValidator<TeamForCreationDto>, TeamCreationValidator>();
+builder.Services.AddScoped<IValidator<RemoteLogForCreationDto>, RemoteLogCreationValidator>();
 builder.Services.AddControllers().AddNewtonsoftJson();
 builder.Services.AddScoped<IReWoSeRepository, ReWoSeRepository>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

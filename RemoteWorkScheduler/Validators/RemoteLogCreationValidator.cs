@@ -1,6 +1,5 @@
 ﻿using FluentValidation;
 using RemoteWorkScheduler.Models;
-using RemoteWorkScheduler.Entities;
 using RemoteWorkScheduler.DbContexts;
 
 
