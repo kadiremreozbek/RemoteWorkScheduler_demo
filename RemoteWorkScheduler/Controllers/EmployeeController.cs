@@ -1,9 +1,13 @@
 ﻿using AutoMapper;
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using RemoteWorkScheduler.DbContexts;
 using RemoteWorkScheduler.Entities;
 using RemoteWorkScheduler.Models;
 using RemoteWorkScheduler.Services;
+using RemoteWorkScheduler.Validators;
 
 namespace RemoteWorkScheduler.Controllers
 {
@@ -13,11 +17,15 @@ namespace RemoteWorkScheduler.Controllers
     {
         private readonly IReWoSeRepository _reWoSeRepository;
         private readonly IMapper _mapper;
-        public EmployeeController(IReWoSeRepository reWoSeRepository, IMapper mapper)
+        private FluentValidation.IValidator<EmployeeForCreationDto> _postValidator;
+        
+        public EmployeeController(IReWoSeRepository reWoSeRepository, IMapper mapper, FluentValidation.IValidator<EmployeeForCreationDto> validator)
         {
             _reWoSeRepository = reWoSeRepository ?? throw new ArgumentNullException(nameof(reWoSeRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _postValidator = validator ?? throw new ArgumentNullException(nameof(validator));
         }
+
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<EmployeeDto>>> GetEmployees()
@@ -39,6 +47,13 @@ namespace RemoteWorkScheduler.Controllers
         [HttpPost]
         public async Task<ActionResult<EmployeeDto>> CreateEmployee(EmployeeForCreationDto employeeForCreation)
         {
+            ValidationResult validationResult = await _postValidator.ValidateAsync(employeeForCreation);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.Errors);
+            }
+
             var employeeEntity = _mapper.Map<Employee>(employeeForCreation);
 
             await _reWoSeRepository.AddEmployeeAsync(employeeEntity);

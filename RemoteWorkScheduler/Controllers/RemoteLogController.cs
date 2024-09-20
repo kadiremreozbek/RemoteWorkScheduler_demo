@@ -1,10 +1,11 @@
 using AutoMapper;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using RemoteWorkScheduler.Entities;
 using RemoteWorkScheduler.Models;
 using RemoteWorkScheduler.Services;
-
+using RemoteWorkScheduler.Validators;
 
 namespace RemoteWorkScheduler.Controllers
 {
@@ -19,6 +20,8 @@ namespace RemoteWorkScheduler.Controllers
             _reWoSeRepository = reWoSeRepository ?? throw new ArgumentNullException(nameof(reWoSeRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
+        RemoteLogCreationValidator postValidator = new RemoteLogCreationValidator();
+
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<RemoteLogDto>>> GetRemoteLogs()
@@ -52,6 +55,13 @@ namespace RemoteWorkScheduler.Controllers
         [HttpPost]
         public async Task<ActionResult<RemoteLogDto>> CreateRemoteLog(RemoteLogForCreationDto remoteLogForCreation)
         {
+            ValidationResult validationResult = postValidator.Validate(remoteLogForCreation);
+
+            if(!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.Errors);
+            }
+
             if (await _reWoSeRepository.LogExistsAsync(remoteLogForCreation.Date, remoteLogForCreation.EmployeeId))
             {
                 return BadRequest("Remote log already exists.");

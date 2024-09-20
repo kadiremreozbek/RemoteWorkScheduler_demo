@@ -19,7 +19,6 @@ namespace RemoteWorkScheduler.Entities
         // Parameterless constructor for EF Core
         public RemoteLog() { }
 
-        // Constructor for your own use
         public RemoteLog(DateTime date)
         {
             Date = date;

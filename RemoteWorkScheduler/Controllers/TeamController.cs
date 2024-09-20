@@ -1,9 +1,11 @@
 ﻿using AutoMapper;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using RemoteWorkScheduler.Entities;
 using RemoteWorkScheduler.Models;
 using RemoteWorkScheduler.Services;
+using RemoteWorkScheduler.Validators;
 
 
 namespace RemoteWorkScheduler.Controllers
@@ -20,6 +22,7 @@ namespace RemoteWorkScheduler.Controllers
             _reWoSeRepository = reWoSeRepository ?? throw new ArgumentNullException(nameof(reWoSeRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
+        TeamCreationValidator postValidator = new TeamCreationValidator();
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TeamWithoutEmployeesDto>>> GetTeams()
@@ -52,6 +55,13 @@ namespace RemoteWorkScheduler.Controllers
         [HttpPost]
         public async Task<ActionResult<TeamDto>> CreateTeam(TeamForCreationDto teamForCreation)
         {
+            ValidationResult validationResult = postValidator.Validate(teamForCreation);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.Errors);
+            }
+
             if (await _reWoSeRepository.TeamNameExistsAsync(teamForCreation.Name))
             {
                 return BadRequest("Team name already exists.");

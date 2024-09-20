@@ -25,7 +25,6 @@ namespace RemoteWorkScheduler.Entities
         // Parameterless constructor for EF Core
         public Employee() { }
 
-        // Constructor for your own use
         public Employee(string name, JobTitle title, Team team)
         {
             Name = name;
