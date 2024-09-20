@@ -1,4 +1,5 @@
 using AutoMapper;
+using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
@@ -15,12 +16,14 @@ namespace RemoteWorkScheduler.Controllers
     {
         private readonly IReWoSeRepository _reWoSeRepository;
         private readonly IMapper _mapper;
-        public RemoteLogController(IReWoSeRepository reWoSeRepository, IMapper mapper)
+        private IValidator<RemoteLogForCreationDto> _postValidator;
+
+        public RemoteLogController(IReWoSeRepository reWoSeRepository, IMapper mapper, IValidator<RemoteLogForCreationDto> validator)
         {
             _reWoSeRepository = reWoSeRepository ?? throw new ArgumentNullException(nameof(reWoSeRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _postValidator = validator ?? throw new ArgumentNullException(nameof(validator));
         }
-        RemoteLogCreationValidator postValidator = new RemoteLogCreationValidator();
 
 
         [HttpGet]
@@ -55,7 +58,7 @@ namespace RemoteWorkScheduler.Controllers
         [HttpPost]
         public async Task<ActionResult<RemoteLogDto>> CreateRemoteLog(RemoteLogForCreationDto remoteLogForCreation)
         {
-            ValidationResult validationResult = postValidator.Validate(remoteLogForCreation);
+            ValidationResult validationResult = _postValidator.Validate(remoteLogForCreation);
 
             if(!validationResult.IsValid)
             {
@@ -87,6 +90,13 @@ namespace RemoteWorkScheduler.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateRemoteLog(Guid id, RemoteLogForCreationDto remoteLogForUpdate)
         {
+            ValidationResult validationResult = _postValidator.Validate(remoteLogForUpdate);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.Errors);
+            }
+
             if (await _reWoSeRepository.LogExistsAsync(remoteLogForUpdate.Date, remoteLogForUpdate.EmployeeId))
             {
                 return BadRequest("Remote log already exists.");
@@ -127,6 +137,13 @@ namespace RemoteWorkScheduler.Controllers
 
             var remoteLogToPatch = _mapper.Map<RemoteLogForCreationDto>(remoteLogFromRepo);
             patchDocument.ApplyTo(remoteLogToPatch, ModelState);
+
+            ValidationResult validationResult = _postValidator.Validate(remoteLogToPatch);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.Errors);
+            }
 
             if (!TryValidateModel(remoteLogToPatch))
             {

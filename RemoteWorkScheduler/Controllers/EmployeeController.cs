@@ -17,13 +17,15 @@ namespace RemoteWorkScheduler.Controllers
     {
         private readonly IReWoSeRepository _reWoSeRepository;
         private readonly IMapper _mapper;
-        private FluentValidation.IValidator<EmployeeForCreationDto> _postValidator;
-        
-        public EmployeeController(IReWoSeRepository reWoSeRepository, IMapper mapper, FluentValidation.IValidator<EmployeeForCreationDto> validator)
+        private IValidator<EmployeeForCreationDto> _postValidator;
+        private IValidator<EmployeeForUpdateDto> _updateValidator;
+
+        public EmployeeController(IReWoSeRepository reWoSeRepository, IMapper mapper, IValidator<EmployeeForCreationDto> postValidator, IValidator<EmployeeForUpdateDto> updateValidator)
         {
             _reWoSeRepository = reWoSeRepository ?? throw new ArgumentNullException(nameof(reWoSeRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
-            _postValidator = validator ?? throw new ArgumentNullException(nameof(validator));
+            _postValidator = postValidator ?? throw new ArgumentNullException(nameof(postValidator));
+            _updateValidator = updateValidator ?? throw new ArgumentNullException(nameof(updateValidator));
         }
 
 
@@ -66,6 +68,13 @@ namespace RemoteWorkScheduler.Controllers
         [HttpPut("{employeeId}")]
         public async Task<IActionResult> UpdateEmployee(Guid employeeId, EmployeeForUpdateDto employeeForUpdate)
         {
+            ValidationResult validationResult = await _updateValidator.ValidateAsync(employeeForUpdate);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.Errors);
+            }
+
             if (await _reWoSeRepository.EmployeeExistsAsync(employeeForUpdate.Id))
             {
                 return BadRequest("Employee already exists.");
@@ -87,6 +96,7 @@ namespace RemoteWorkScheduler.Controllers
         [HttpPatch("{employeeId}")]
         public async Task<IActionResult> PartiallyUpdateEmployee(Guid employeeId, [FromBody] JsonPatchDocument<EmployeeForUpdateDto> patchDocument)
         {
+
             if (patchDocument == null)
             {
                 return BadRequest();
@@ -100,6 +110,13 @@ namespace RemoteWorkScheduler.Controllers
 
             var employeeToPatch = _mapper.Map<EmployeeForUpdateDto>(employeeFromRepo);
             patchDocument.ApplyTo(employeeToPatch, ModelState);
+
+            ValidationResult validationResult = await _updateValidator.ValidateAsync(employeeToPatch);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.Errors);
+            }
 
             if (!TryValidateModel(employeeToPatch))
             {

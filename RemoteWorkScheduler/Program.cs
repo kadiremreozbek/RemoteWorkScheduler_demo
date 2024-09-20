@@ -18,6 +18,8 @@ Log.Logger = new LoggerConfiguration()
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddScoped<IValidator<EmployeeForUpdateDto>, EmployeeUpdateValidator>();
+builder.Services.AddScoped<IValidator<TeamForUpdateDto>, TeamUpdateValidator>();
 builder.Services.AddScoped<IValidator<EmployeeForCreationDto>,EmployeeCreationValidator>();
 builder.Services.AddScoped<IValidator<TeamForCreationDto>, TeamCreationValidator>();
 builder.Services.AddScoped<IValidator<RemoteLogForCreationDto>, RemoteLogCreationValidator>();

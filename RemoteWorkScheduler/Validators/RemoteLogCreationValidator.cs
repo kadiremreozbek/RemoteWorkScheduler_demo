@@ -9,8 +9,10 @@ namespace RemoteWorkScheduler.Validators
     {
         private readonly RemoteWorkSchedulerContext _context;
 
-        public RemoteLogCreationValidator()
+        public RemoteLogCreationValidator(RemoteWorkSchedulerContext context)
         {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+
             RuleFor(remoteLog => remoteLog.Date)
                 .NotEmpty().WithMessage("Date is required.")
                 .Must(date => date.Date >= DateTime.Today).WithMessage("Date must be in the future.");

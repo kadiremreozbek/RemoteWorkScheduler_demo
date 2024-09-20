@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
@@ -17,12 +18,17 @@ namespace RemoteWorkScheduler.Controllers
     {
         private readonly IReWoSeRepository _reWoSeRepository;
         private readonly IMapper _mapper;
-        public TeamController(IReWoSeRepository reWoSeRepository, IMapper mapper)
+        private IValidator<TeamForCreationDto> _postValidator;
+        private IValidator<TeamForUpdateDto> _updateValidator;
+
+
+        public TeamController(IReWoSeRepository reWoSeRepository, IMapper mapper, IValidator<TeamForCreationDto> validator, IValidator<TeamForUpdateDto> updateValidator)
         {
             _reWoSeRepository = reWoSeRepository ?? throw new ArgumentNullException(nameof(reWoSeRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _postValidator = validator ?? throw new ArgumentNullException(nameof(validator));
+            _updateValidator = updateValidator ?? throw new ArgumentNullException(nameof(updateValidator));
         }
-        TeamCreationValidator postValidator = new TeamCreationValidator();
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TeamWithoutEmployeesDto>>> GetTeams()
@@ -55,7 +61,7 @@ namespace RemoteWorkScheduler.Controllers
         [HttpPost]
         public async Task<ActionResult<TeamDto>> CreateTeam(TeamForCreationDto teamForCreation)
         {
-            ValidationResult validationResult = postValidator.Validate(teamForCreation);
+            ValidationResult validationResult = _postValidator.Validate(teamForCreation);
 
             if (!validationResult.IsValid)
             {
@@ -79,6 +85,13 @@ namespace RemoteWorkScheduler.Controllers
         [HttpPut("{teamId}")]
         public async Task<IActionResult> UpdateTeam(Guid teamID, TeamForUpdateDto teamForUpdate)
         {
+            ValidationResult validationResult = _updateValidator.Validate(teamForUpdate);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.Errors);
+            }
+
             if (await _reWoSeRepository.TeamExistsAsync(teamForUpdate.Id))
             {
                 return BadRequest("Team Id already exists.");
@@ -118,6 +131,13 @@ namespace RemoteWorkScheduler.Controllers
 
             var teamToPatch = _mapper.Map<TeamForUpdateDto>(teamFromRepo);
             patchDocument.ApplyTo(teamToPatch, ModelState);
+
+            ValidationResult validationResult = _updateValidator.Validate(teamToPatch);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.Errors);
+            }
 
             if (!TryValidateModel(teamToPatch))
             {
