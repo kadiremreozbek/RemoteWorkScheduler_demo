@@ -13,27 +13,20 @@ namespace RemoteWorkScheduler.Validators
             _context = context ?? throw new ArgumentNullException(nameof(context));
 
             RuleFor(t => t.Id)
-                .NotEmpty().WithMessage("Id is required.")
-                .Must(ValidateIdUnique).WithMessage("Team Id already exist.");
+                .NotEmpty().WithMessage("Id is required.");
 
             RuleFor(t => t.Name)
                 .NotEmpty().WithMessage("Name is required.")
                 .MaximumLength(50).WithMessage("Name can't be longer than 50 characters.")
-                .Must(ValidateTeamDoesNotExist).WithMessage("Team with this name already exists.");
+                .Must((team, name) => ValidateTeamDoesNotExist(name, team.Id)).WithMessage("Team with this name already exists.");
 
             RuleFor(t => t.Description)
                 .MaximumLength(200).WithMessage("Description can't be longer than 200 characters.");
         }
 
-        private bool ValidateIdUnique(Guid id)
+        private bool ValidateTeamDoesNotExist(string name, Guid teamId)
         {
-            return !_context.Teams.Any(c => c.Id == id);
+            return !_context.Teams.Any(c => c.Name == name && c.Id != teamId);
         }
-
-        private bool ValidateTeamDoesNotExist(string name)
-        {
-            return !_context.Teams.Any(c => c.Name == name);
-        }
-
     }
 }

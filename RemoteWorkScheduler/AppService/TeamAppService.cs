@@ -47,8 +47,9 @@ namespace RemoteWorkScheduler.AppService
         public async Task<IEnumerable<EmployeeDto>> GetTeamEmployeesAS(Guid teamId)
         {
             var teamFromRepo = await _reWoSeRepository.GetTeamAsync(teamId);
-            var teamDto = _mapper.Map<IEnumerable<EmployeeDto>>(teamFromRepo.Employees);
-            return teamDto;
+            var sortedEmployees = teamFromRepo.Employees.OrderBy(e => e.Title).ThenBy(e => e.Name);
+            var employeesList = _mapper.Map<IEnumerable<EmployeeDto>>(sortedEmployees);
+            return employeesList;
         }
         public async Task<IActionResult> UpdateTeamAS(Guid teamId, TeamForUpdateDto teamFU)
         {

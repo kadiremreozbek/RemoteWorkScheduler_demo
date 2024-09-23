@@ -26,7 +26,7 @@ namespace RemoteWorkScheduler.Services
         }
         public async Task<Team> GetTeamAsync(Guid teamId)
         {
-            return await _context.Teams.FirstOrDefaultAsync(c => c.Id == teamId);
+            return await _context.Teams.Include(t => t.Employees).FirstOrDefaultAsync(c => c.Id == teamId);
         }
         public async Task UpdateTeamAsync(Team team)
         {

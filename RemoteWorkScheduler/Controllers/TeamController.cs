@@ -3,6 +3,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using RemoteWorkScheduler.AppService;
 using RemoteWorkScheduler.Entities;
 using RemoteWorkScheduler.Models;
 using RemoteWorkScheduler.Services;
@@ -17,13 +18,15 @@ namespace RemoteWorkScheduler.Controllers
     public class TeamController : ControllerBase
     {
         private readonly IReWoSeRepository _reWoSeRepository;
+        private readonly ITeamAppService _teamAppService;
         private readonly IMapper _mapper;
         private IValidator<TeamForCreationDto> _postValidator;
         private IValidator<TeamForUpdateDto> _updateValidator;
 
 
-        public TeamController(IReWoSeRepository reWoSeRepository, IMapper mapper, IValidator<TeamForCreationDto> validator, IValidator<TeamForUpdateDto> updateValidator)
+        public TeamController(ITeamAppService teamAppService, IReWoSeRepository reWoSeRepository, IMapper mapper, IValidator<TeamForCreationDto> validator, IValidator<TeamForUpdateDto> updateValidator)
         {
+            _teamAppService = teamAppService ?? throw new ArgumentNullException(nameof(teamAppService));
             _reWoSeRepository = reWoSeRepository ?? throw new ArgumentNullException(nameof(reWoSeRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _postValidator = validator ?? throw new ArgumentNullException(nameof(validator));
@@ -33,30 +36,28 @@ namespace RemoteWorkScheduler.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TeamWithoutEmployeesDto>>> GetTeams()
         {
-            var teamsFromRepo = await _reWoSeRepository.GetTeamsListAsync();
-            return Ok(_mapper.Map<IEnumerable<TeamWithoutEmployeesDto>>(teamsFromRepo));
+            var teamsList = await _teamAppService.GetTeamsAS();
+
+            return Ok(teamsList);
         }
         [HttpGet("{teamId}")]
         public async Task<IActionResult> GetTeam(Guid teamId)
         {
-            var teamFromRepo = await _reWoSeRepository.GetTeamAsync(teamId);
-            if (teamFromRepo == null)
+            var teamDto = await _teamAppService.GetTeamAS(teamId);
+
+            if (teamDto == null)
             {
                 return NotFound();
             }
 
-            return Ok(_mapper.Map<TeamWithoutEmployeesDto>(teamFromRepo));
+            return Ok(teamDto);
         }
         [HttpGet("{teamId}/employees")]
         public async Task<ActionResult<IEnumerable<TeamDto>>> GetTeamEmployees(Guid teamId)
         {
-            var teamFromRepo = await _reWoSeRepository.GetTeamAsync(teamId);
-            if (teamFromRepo == null)
-            {
-                return NotFound();
-            }
+            var employeesList = await _teamAppService.GetTeamEmployeesAS(teamId);
 
-            return Ok(_mapper.Map<IEnumerable<EmployeeDto>>(teamFromRepo.Employees));
+            return Ok(employeesList);
         }
         [HttpPost]
         public async Task<ActionResult<TeamDto>> CreateTeam(TeamForCreationDto teamForCreation)
@@ -68,22 +69,12 @@ namespace RemoteWorkScheduler.Controllers
                 return BadRequest(validationResult.Errors);
             }
 
-            if (await _reWoSeRepository.TeamNameExistsAsync(teamForCreation.Name))
-            {
-                return BadRequest("Team name already exists.");
-            }
+            var teamToReturn = await _teamAppService.AddTeamAS(teamForCreation);
 
-            var teamEntity = _mapper.Map<Team>(teamForCreation);
-
-            await _reWoSeRepository.AddTeamAsync(teamEntity);
-            await _reWoSeRepository.SaveChangesAsync();
-
-            var teamToReturn = _mapper.Map<TeamDto>(teamEntity);
-
-            return CreatedAtAction(nameof(GetTeam), new { teamName = teamToReturn.Name }, teamToReturn);
+            return CreatedAtAction(nameof(GetTeam), new { teamId = teamToReturn.Id }, teamToReturn);
         }
         [HttpPut("{teamId}")]
-        public async Task<IActionResult> UpdateTeam(Guid teamID, TeamForUpdateDto teamForUpdate)
+        public async Task<IActionResult> UpdateTeam(Guid teamId, TeamForUpdateDto teamForUpdate)
         {
             ValidationResult validationResult = _updateValidator.Validate(teamForUpdate);
 
@@ -92,38 +83,24 @@ namespace RemoteWorkScheduler.Controllers
                 return BadRequest(validationResult.Errors);
             }
 
-            if (await _reWoSeRepository.TeamExistsAsync(teamForUpdate.Id))
+            if (teamId != teamForUpdate.Id)
             {
-                return BadRequest("Team Id already exists.");
+                return BadRequest("Team Id does not match.");
             }
 
-            if (await _reWoSeRepository.TeamNameExistsAsync(teamForUpdate.Name))
-            {
-                return BadRequest("Team name already exists.");
-            }
-
-            var teamFromRepo = await _reWoSeRepository.GetTeamAsync(teamID);
-            if (teamFromRepo == null)
-            {
-                return NotFound();
-            }
-
-            _mapper.Map(teamForUpdate, teamFromRepo);
-
-            await _reWoSeRepository.UpdateTeamAsync(teamFromRepo);
-            await _reWoSeRepository.SaveChangesAsync();
+            await _teamAppService.UpdateTeamAS(teamId, teamForUpdate);
 
             return NoContent();
         }
         [HttpPatch("{teamId}")]
-        public async Task<IActionResult> PartiallyUpdateTeam(Guid teamID, [FromBody] JsonPatchDocument<TeamForUpdateDto> patchDocument)
+        public async Task<IActionResult> PartiallyUpdateTeam(Guid teamId, [FromBody] JsonPatchDocument<TeamForUpdateDto> patchDocument)
         {
             if (patchDocument == null)
             {
                 return BadRequest();
             }
 
-            var teamFromRepo = await _reWoSeRepository.GetTeamAsync(teamID);
+            var teamFromRepo = await _reWoSeRepository.GetTeamAsync(teamId);
             if (teamFromRepo == null)
             {
                 return NotFound();
@@ -144,34 +121,19 @@ namespace RemoteWorkScheduler.Controllers
                 return ValidationProblem(ModelState);
             }
 
-            if (await _reWoSeRepository.TeamExistsAsync(teamToPatch.Id))
+            if (teamId != teamToPatch.Id)
             {
-                return BadRequest("Team Id already exists.");
+                return BadRequest("Team Id does not match.");
             }
 
-            if (await _reWoSeRepository.TeamNameExistsAsync(teamToPatch.Name))
-            {
-                return BadRequest("Team name already exists.");
-            }
-
-            _mapper.Map(teamToPatch, teamFromRepo);
-
-            await _reWoSeRepository.UpdateTeamAsync(teamFromRepo);
-            var saveResult = await _reWoSeRepository.SaveChangesAsync();
+            await _teamAppService.UpdateTeamAS(teamId, teamToPatch);
 
             return NoContent();
         }
         [HttpDelete("{teamId}")]
         public async Task<IActionResult> DeleteTeam(Guid teamId)
         {
-            var teamFromRepo = await _reWoSeRepository.GetTeamAsync(teamId);
-            if (teamFromRepo == null)
-            {
-                return NotFound();
-            }
-
-            _reWoSeRepository.DeleteTeam(teamFromRepo);
-            await _reWoSeRepository.SaveChangesAsync();
+            await _teamAppService.DeleteTeamAS(teamId);
 
             return NoContent();
         }
