@@ -129,6 +129,19 @@ namespace RemoteWorkScheduler.Services
         {
             return await _context.RemoteLogs.AnyAsync(c => c.Date == date && c.EmployeeId == employeeId);
         }
+        public async Task<IEnumerable<RemoteLog>> GetEmployeeLogCountForWeek(Guid employeeId)
+        {
+            var employee = await _context.Employees.FirstOrDefaultAsync(c => c.Id == employeeId);
+
+            DateTime startOfWeekdays = DateTime.Now.AddDays(-(((int)DateTime.Now.DayOfWeek + 5) % 7));
+            DateTime endOfWeekdays = startOfWeekdays.AddDays(4).AddTicks(-1);
+
+            return await _context.RemoteLogs.Where(c => c.EmployeeId == employeeId && c.Date >= startOfWeekdays && c.Date <= endOfWeekdays).ToListAsync();
+        }
+        public async Task<IEnumerable<RemoteLog>> LogsTeamTitleThatDay(DateTime date, Guid teamId, JobTitle title)
+        {
+            return await _context.RemoteLogs.Where(c => c.Employee.Title == title && c.Employee.TeamId == teamId && c.Date == date).ToListAsync();
+        }
         public async Task<bool> LogEligibleToPost(RemoteLog remoteLog)
         {
             if (remoteLog == null)

@@ -3,6 +3,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using RemoteWorkScheduler.AppService;
 using RemoteWorkScheduler.Entities;
 using RemoteWorkScheduler.Models;
 using RemoteWorkScheduler.Services;
@@ -14,11 +15,13 @@ namespace RemoteWorkScheduler.Controllers
     public class RemoteLogController : ControllerBase
     {
         private readonly IReWoSeRepository _reWoSeRepository;
+        private readonly IRemoteLogAppService _remoteLogAppService;
         private readonly IMapper _mapper;
         private IValidator<RemoteLogForCreationDto> _postValidator;
 
-        public RemoteLogController(IReWoSeRepository reWoSeRepository, IMapper mapper, IValidator<RemoteLogForCreationDto> validator)
+        public RemoteLogController(IRemoteLogAppService remoteLogAppService, IReWoSeRepository reWoSeRepository, IMapper mapper, IValidator<RemoteLogForCreationDto> validator)
         {
+            _remoteLogAppService = remoteLogAppService ?? throw new ArgumentNullException(nameof(remoteLogAppService));
             _reWoSeRepository = reWoSeRepository ?? throw new ArgumentNullException(nameof(reWoSeRepository));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _postValidator = validator ?? throw new ArgumentNullException(nameof(validator));
@@ -28,31 +31,27 @@ namespace RemoteWorkScheduler.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<RemoteLogDto>>> GetRemoteLogs()
         {
-            var remoteLogsFromRepo = await _reWoSeRepository.GetRemoteLogsListAsync();
-            return Ok(_mapper.Map<IEnumerable<RemoteLogDto>>(remoteLogsFromRepo));
+            var logs = await _remoteLogAppService.GetRemoteLogsAS();
+            return Ok(logs);
         }
         [HttpGet("{id}")]
         public async Task<IActionResult> GetRemoteLog(Guid id)
         {
-            var remoteLogFromRepo = await _reWoSeRepository.GetRemoteLogAsync(id);
-            if (remoteLogFromRepo == null)
-            {
-                return NotFound();
-            }
+            var log = await _remoteLogAppService.GetRemoteLogAS(id);
 
-            return Ok(_mapper.Map<RemoteLogDto>(remoteLogFromRepo));
+            return Ok(log);
         }
         [HttpGet("bydate/{date}")]
         public async Task<IActionResult> GetRemoteLogsByDate(DateTime date)
         {
-            var remoteLogsFromRepo = await _reWoSeRepository.GetRemoteLogsByDateAsync(date);
-            return Ok(_mapper.Map<IEnumerable<RemoteLogDto>>(remoteLogsFromRepo)); // Corrected line
+            var dateLogs = await _remoteLogAppService.GetRemoteLogsByDateAS(date);
+            return Ok(dateLogs);
         }
         [HttpGet("byemployee/{employeeId}")]
         public async Task<ActionResult<IEnumerable<RemoteLogDto>>> GetRemoteLogsByEmployeeId(Guid employeeId)
         {
-            var remoteLogsFromRepo = await _reWoSeRepository.GetRemoteLogsByEmployeeIdAsync(employeeId);
-            return Ok(_mapper.Map<IEnumerable<RemoteLogDto>>(remoteLogsFromRepo));
+            var remoteLogsFromRepo = await _remoteLogAppService.GetRemoteLogsByEmployeeIdAS(employeeId);
+            return Ok(remoteLogsFromRepo);
         }
         [HttpPost]
         public async Task<ActionResult<RemoteLogDto>> CreateRemoteLog(RemoteLogForCreationDto remoteLogForCreation)
@@ -69,24 +68,17 @@ namespace RemoteWorkScheduler.Controllers
                 return BadRequest("Remote log already exists.");
             }
 
-            var remoteLogEntity = _mapper.Map<RemoteLog>(remoteLogForCreation);
 
-            if (!await _reWoSeRepository.LogEligibleToPost(remoteLogEntity))
+            if (!await _remoteLogAppService.LogEligibleToPostAS(remoteLogForCreation))
             {
                 return BadRequest("This log does not follow the rules.");
             }
 
-            await _reWoSeRepository.AddRemoteLogAsync(remoteLogEntity);
-
-
-
-            await _reWoSeRepository.SaveChangesAsync();
-
-            var remoteLogToReturn = _mapper.Map<RemoteLogDto>(remoteLogEntity);
+            var remoteLogToReturn = await _remoteLogAppService.CreateRemoteLogAS(remoteLogForCreation);
 
             return CreatedAtAction(nameof(GetRemoteLog) ,new { id = remoteLogToReturn.Id }, remoteLogToReturn);
         }
-        [HttpPut("{id}")]
+        [HttpPut("{id}")]//test
         public async Task<IActionResult> UpdateRemoteLog(Guid id, RemoteLogForCreationDto remoteLogForUpdate)
         {
             ValidationResult validationResult = _postValidator.Validate(remoteLogForUpdate);
@@ -96,12 +88,6 @@ namespace RemoteWorkScheduler.Controllers
                 return BadRequest(validationResult.Errors);
             }
 
-            if (await _reWoSeRepository.LogExistsAsync(remoteLogForUpdate.Date, remoteLogForUpdate.EmployeeId))
-            {
-                return BadRequest("Remote log already exists.");
-            }
-
-
             var remoteLogFromRepo = await _reWoSeRepository.GetRemoteLogAsync(id);
             if (remoteLogFromRepo == null)
             {
@@ -110,17 +96,16 @@ namespace RemoteWorkScheduler.Controllers
 
             _mapper.Map(remoteLogForUpdate, remoteLogFromRepo);
 
-            if (!await _reWoSeRepository.LogEligibleUpdate(remoteLogFromRepo))
+            if (!await _remoteLogAppService.LogEligibleUpdateAS(remoteLogFromRepo))
             {
                 return BadRequest("This log does not follow the rules.");
             }
 
-            await _reWoSeRepository.UpdateRemoteLogAsync(remoteLogFromRepo);
-            await _reWoSeRepository.SaveChangesAsync();
+            await _remoteLogAppService.UpdateRemoteLogAS(remoteLogFromRepo);
 
             return NoContent();
         }
-        [HttpPatch("{id}")]
+        [HttpPatch("{id}")]//test
         public async Task<IActionResult> PartiallyUpdateRemoteLog(Guid id, [FromBody] JsonPatchDocument<RemoteLogForCreationDto> patchDocument)
         {
             if (patchDocument == null)
@@ -149,39 +134,26 @@ namespace RemoteWorkScheduler.Controllers
                 return ValidationProblem(ModelState);
             }
 
-            if (await _reWoSeRepository.LogExistsAsync(remoteLogToPatch.Date, remoteLogToPatch.EmployeeId))
+            if (!await _remoteLogAppService.LogEligibleToPostAS(remoteLogToPatch))
             {
                 return BadRequest("Remote log already exists.");
             }
 
             _mapper.Map(remoteLogToPatch, remoteLogFromRepo);
 
-            if (!await _reWoSeRepository.LogEligibleUpdate(remoteLogFromRepo))
+            if (!await _remoteLogAppService.LogEligibleUpdateAS(remoteLogFromRepo))
             {
                 return BadRequest("This log does not follow the rules.");
             }
 
-            await _reWoSeRepository.UpdateRemoteLogAsync(remoteLogFromRepo);
-            var saveResult = await _reWoSeRepository.SaveChangesAsync();
-
-            if (!saveResult)
-            {
-                return StatusCode(500, "A problem happened while handling your request.");
-            }
+            await _remoteLogAppService.UpdateRemoteLogAS(remoteLogFromRepo);
 
             return NoContent();
         }
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRemoteLog(Guid id)
         {
-            var remoteLogFromRepo = await _reWoSeRepository.GetRemoteLogAsync(id);
-            if (remoteLogFromRepo == null)
-            {
-                return NotFound();
-            }
-
-            _reWoSeRepository.DeleteRemoteLog(remoteLogFromRepo);
-            await _reWoSeRepository.SaveChangesAsync();
+            await _remoteLogAppService.DeleteRemoteLogAS(id);
 
             return NoContent();
         }

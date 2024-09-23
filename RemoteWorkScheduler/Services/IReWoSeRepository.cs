@@ -23,6 +23,8 @@ namespace RemoteWorkScheduler.Services
         Task<RemoteLog> GetRemoteLogAsync(Guid id);
         Task<IEnumerable<RemoteLog>> GetRemoteLogsByDateAsync(DateTime date);
         Task<IEnumerable<RemoteLog>> GetRemoteLogsByEmployeeIdAsync(Guid employeeId);
+        Task<IEnumerable<RemoteLog>> GetEmployeeLogCountForWeek(Guid employeeId);
+        Task<IEnumerable<RemoteLog>> LogsTeamTitleThatDay(DateTime date, Guid teamId, JobTitle title);
         Task<bool> LogExistsAsync(DateTime date, Guid employeeId);
         Task<bool> LogEligibleToPost(RemoteLog remoteLog);
         Task<bool> LogEligibleUpdate(RemoteLog remoteLog);

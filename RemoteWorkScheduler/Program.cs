@@ -28,6 +28,7 @@ builder.Services.AddControllers().AddNewtonsoftJson();
 builder.Services.AddScoped<IReWoSeRepository, ReWoSeRepository>();
 builder.Services.AddScoped<IEmployeeAppService, EmployeeAppService>();
 builder.Services.AddScoped<ITeamAppService, TeamAppService>();
+builder.Services.AddScoped<IRemoteLogAppService, RemoteLogAppService>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
