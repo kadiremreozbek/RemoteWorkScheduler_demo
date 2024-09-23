@@ -8,6 +8,7 @@ using System.Text;
 using RemoteWorkScheduler.Validators;
 using RemoteWorkScheduler.Models;
 using FluentValidation;
+using RemoteWorkScheduler.AppService;
 
 
 Log.Logger = new LoggerConfiguration()
@@ -25,6 +26,7 @@ builder.Services.AddScoped<IValidator<TeamForCreationDto>, TeamCreationValidator
 builder.Services.AddScoped<IValidator<RemoteLogForCreationDto>, RemoteLogCreationValidator>();
 builder.Services.AddControllers().AddNewtonsoftJson();
 builder.Services.AddScoped<IReWoSeRepository, ReWoSeRepository>();
+builder.Services.AddScoped<IEmployeeAppService, EmployeeAppService>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

@@ -13,8 +13,8 @@ namespace RemoteWorkScheduler.Validators
             _context = context ?? throw new ArgumentNullException(nameof(context));
 
             RuleFor(e => e.Id)
-                .NotEmpty().WithMessage("Id is required.")
-                .Must(ValidateEmployeeIdDoesNotExists).WithMessage("EmployeeId already exists.");
+                .NotEmpty().WithMessage("Id is required.");
+                //.Must(ValidateEmployeeIdIsSame).WithMessage("EmployeeId does not match the provided Id.");
 
             RuleFor(e => e.Name)
                 .NotEmpty().WithMessage("Name is required.")
@@ -33,11 +33,9 @@ namespace RemoteWorkScheduler.Validators
             return _context.Teams.Any(c => c.Id == teamId);
         }
 
-        private bool ValidateEmployeeIdDoesNotExists(Guid employeeId)
+        /*private bool ValidateEmployeeIdIsSame(Guid id)
         {
-            return !_context.Employees.Any(c => c.Id == employeeId);
-        }
-
-
+            return id == _employeeId;
+        }*/
     }
 }

@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using RemoteWorkScheduler.Entities;
 using RemoteWorkScheduler.Models;
 using RemoteWorkScheduler.Services;
-using RemoteWorkScheduler.Validators;
 
 namespace RemoteWorkScheduler.Controllers
 {

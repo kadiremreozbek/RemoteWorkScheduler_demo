@@ -11,6 +11,7 @@ namespace RemoteWorkScheduler.Services
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
         }
+
         public async Task AddTeamAsync(Team team)
         {
             if (team == null)
